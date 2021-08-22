@@ -25,30 +25,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ec2Client = new Aws\Ec2\Ec2Client([
             'region' => 'eu-west-2',
             'version' => '2016-11-15',
-            'credentials' => array(
+            'credentials' => [
                 'key' => getenv('AWS_KEY'),
                 'secret'  => getenv('AWS_SECRET'),
-              )
+            ]
         ]);
 
         $instanceId = getenv('INSTANCE_ID');
 
-        $ids = [getenv('INSTANCE_ID')];
+        $instanceIds = [getenv('INSTANCE_ID')];
         
-        if ($action == 'START') {
+        if(array_key_exists('start', $_POST)) {
             $result = $ec2Client->startInstances([
-                'InstanceIds' => $ids,
+                'InstanceIds' => $instanceIds,
             ]);
         } else {
             $result = $ec2Client->stopInstances([
-                'InstanceIds' => $ids,
+                'InstanceIds' => $instanceIds,
             ]);
+        }
+
+        $monitorInstance = 'ON';
+
+        if ($monitorInstance == 'ON') {
+            $result = $ec2Client->monitorInstances(array(
+                'InstanceIds' => $instanceIds
+            ));
+        } else {
+            $result = $ec2Client->unmonitorInstances(array(
+                'InstanceIds' => $instanceIds
+            ));
         }
 
         var_dump($result);
 
         // Start Instance and get IP
         
+
         // SSH into server using ip
 
     }
@@ -76,7 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST">
             <div id="server--controls">
                 <input class="form-control" type="password" name="password" id="password" placeholder="Password">
-                <input type="submit" value="Start">
+                <input type="submit" value="Start" name="start">
+                <input type="submit" value="Stop" name="stop">
             </div>
         </form>
     </div>

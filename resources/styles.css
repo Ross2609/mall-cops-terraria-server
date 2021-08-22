@@ -11,7 +11,7 @@ html, body {
     margin: 20px auto;
     display: grid;
     column-gap: 10px;
-    grid-template-columns: 1fr 0.5fr;
+    grid-template-columns: 0.5fr 0.25fr 0.25fr;
 }
 
 .container {
