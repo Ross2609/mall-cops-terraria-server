@@ -1,11 +1,25 @@
 html, body {
     padding: 10px;
-    background-color: rgb(76, 92, 79);
+    /* background-color: rgb(76, 92, 79); */
+    background-image: url("terraria-night.png");
     color: white;
+    height: 100%;
 }
 
 #server--controls {
-    width: 15%;
-    display: flex;
-    column-gap: 10px;;
+    width: 50%;
+    margin: 20px auto;
+    display: grid;
+    column-gap: 10px;
+    grid-template-columns: 1fr 0.5fr;
+}
+
+.container {
+    width: 50%;
+    margin: 15% auto;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.397);
+    padding: 75px;
+    border: 1px solid grey;
+    border-radius: 50px;
 }
