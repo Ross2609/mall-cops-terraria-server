@@ -1,0 +1,11 @@
+html, body {
+    padding: 10px;
+    background-color: rgb(76, 92, 79);
+    color: white;
+}
+
+#server--controls {
+    width: 15%;
+    display: flex;
+    column-gap: 10px;;
+}
