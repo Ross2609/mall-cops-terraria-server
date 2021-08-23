@@ -3,6 +3,7 @@
 require_once __DIR__ . '/vendor/autoload.php';
 
 use Aws\Ec2\Ec2Client;
+use Spatie\Ssh\Ssh;
 
 // This is for locally running the project only, none of this is needed for production
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
@@ -16,6 +17,9 @@ try {
 } catch (Exception $e) {
     echo $e->getMessage();
 }
+
+// Define variables
+$gotIp = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($_POST['password'] === getenv('PASSWORD')) {
@@ -31,8 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         ]);
 
-        $instanceId = getenv('INSTANCE_ID');
-
         $instanceIds = [getenv('INSTANCE_ID')];
         
         if(array_key_exists('start', $_POST)) {
@@ -45,25 +47,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
-        $monitorInstance = 'ON';
-
-        if ($monitorInstance == 'ON') {
-            $result = $ec2Client->monitorInstances(array(
-                'InstanceIds' => $instanceIds
-            ));
-        } else {
-            $result = $ec2Client->unmonitorInstances(array(
-                'InstanceIds' => $instanceIds
-            ));
+        // Start Instance and get IP
+        while(!$gotIp) {
+            $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
+            $instance = $instanceDesc['Reservations'][0]['Instances'][0];
+            if(array_key_exists('PublicIpAddress', $instance)) {
+                $gotIp = true;
+                $publicIpAddress = $instance['PublicIpAddress'];
+            }
+            
+            sleep(5);
         }
 
-        var_dump($result);
-
-        // Start Instance and get IP
-        
-
         // SSH into server using ip
+        $host = "ec2-{$publicIpAddress}.eu-west-2.compute.amazonaws.com";
+        $port = 22;
 
+        $process = Ssh::create('ubuntu', $host, $port)->execute('echo "Ross\' code has connected!"');
     }
     else {
         echo "Password incorrect... :(";
@@ -85,7 +85,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="container">
         <h1>Mall Cops Terraria Server</h1>
-        <h2 id="server--status">Server Status: Offline</h2>
+        <?php if($gotIp) : ?>
+            <h2 id="server--status">Server Status: Online</h2>
+            <h3 id="server--ip">IP Address: <?= $publicIpAddress?></h3>
+        <?php else : ?>
+            <h2 id="server--status">Server Status: Offline</h2>
+        <?php endif; ?>
         <form method="POST">
             <div id="server--controls">
                 <input class="form-control" type="password" name="password" id="password" placeholder="Password">

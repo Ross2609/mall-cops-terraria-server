@@ -1,6 +1,7 @@
 {
     "require": {
         "vlucas/phpdotenv": "^5.3",
-        "aws/aws-sdk-php": "^3.191"
+        "aws/aws-sdk-php": "^3.191",
+        "spatie/ssh": "^1.6"
     }
 }
