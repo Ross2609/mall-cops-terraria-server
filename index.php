@@ -20,6 +20,7 @@ try {
 
 // Define variables
 $gotIp = false;
+$publicIp = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($_POST['password'] === getenv('PASSWORD')) {
@@ -41,29 +42,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = $ec2Client->startInstances([
                 'InstanceIds' => $instanceIds,
             ]);
+
+            // Start Instance and get IP
+            while(!$gotIp) {
+                $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
+                $instance = $instanceDesc['Reservations'][0]['Instances'][0];
+
+                if(array_key_exists('PublicIpAddress', $instance)) {
+                    $gotIp = true;
+                    $publicIp = $instance['PublicIpAddress'];
+                }
+                
+                sleep(5);
+            }
+
+            // SSH into server using ip
+            $process = Ssh::create('ubuntu', $publicIp)
+                ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
+                ->disableStrictHostKeyChecking()
+                ->execute('touch testfile.txt');
+
         } else {
             $result = $ec2Client->stopInstances([
                 'InstanceIds' => $instanceIds,
             ]);
         }
-
-        // Start Instance and get IP
-        while(!$gotIp) {
-            $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
-            $instance = $instanceDesc['Reservations'][0]['Instances'][0];
-            if(array_key_exists('PublicIpAddress', $instance)) {
-                $gotIp = true;
-                $publicIpAddress = $instance['PublicIpAddress'];
-            }
-            
-            sleep(5);
-        }
-
-        // SSH into server using ip
-        $host = "ec2-{$publicIpAddress}.eu-west-2.compute.amazonaws.com";
-        $port = 22;
-
-        $process = Ssh::create('ubuntu', $host, $port)->execute('echo "Ross\' code has connected!"');
     }
     else {
         echo "Password incorrect... :(";
