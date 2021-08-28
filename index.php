@@ -59,7 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $process = Ssh::create('ubuntu', $publicIp)
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
                 ->disableStrictHostKeyChecking()
-                ->execute('touch testfile.txt');
+                ->execute([
+                    'cd mcterraria/TShock',
+                ]);
 
         } else {
             $result = $ec2Client->stopInstances([
