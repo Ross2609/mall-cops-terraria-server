@@ -5,7 +5,6 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Aws\Ec2\Ec2Client;
 use Spatie\Ssh\Ssh;
 
-// This is for locally running the project only, none of this is needed for production
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
 
@@ -90,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h1>Mall Cops Terraria Server</h1>
         <?php if($gotIp) : ?>
             <h2 id="server--status">Server Status: Online</h2>
-            <h3 id="server--ip">IP Address: <?= $publicIpAddress?></h3>
+            <h3 id="server--ip">IP Address: <?= $publicIp?></h3>
         <?php else : ?>
             <h2 id="server--status">Server Status: Offline</h2>
         <?php endif; ?>
