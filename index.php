@@ -59,9 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $process = Ssh::create('ubuntu', $publicIp)
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
                 ->disableStrictHostKeyChecking()
-                ->execute([
-                    'cd mcterraria/TShock',
-                ]);
+                ->execute('tmux new -s terraria-server');
 
         } else {
             $result = $ec2Client->stopInstances([
