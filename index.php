@@ -13,6 +13,7 @@ try {
     putenv("INSTANCE_ID={$_ENV['INSTANCE_ID']}");
     putenv("AWS_KEY={$_ENV['AWS_KEY']}");
     putenv("AWS_SECRET={$_ENV['AWS_SECRET']}");
+    putenv("WORLD_NAME={$_ENV['WORLD_NAME']}");
 } catch (Exception $e) {
     echo $e->getMessage();
 }
@@ -20,6 +21,8 @@ try {
 // Define variables
 $gotIp = false;
 $publicIp = null;
+$worldName = getenv('WORLD_NAME');
+$startServer = "screen -dmS terraria bash -c \"sh startserver.sh {$worldName}\"";   
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($_POST['password'] === getenv('PASSWORD')) {
@@ -42,25 +45,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'InstanceIds' => $instanceIds,
             ]);
 
+            $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
+            $instance = $instanceDesc['Reservations'][0]['Instances'][0];
+
+            sleep(10);
+
             // Start Instance and get IP
             while(!$gotIp) {
-                $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
-                $instance = $instanceDesc['Reservations'][0]['Instances'][0];
+                sleep(1);
 
                 if(array_key_exists('PublicIpAddress', $instance)) {
                     $gotIp = true;
                     $publicIp = $instance['PublicIpAddress'];
                 }
-                
-                sleep(5);
             }
 
-            // SSH into server using ip
             $process = Ssh::create('ubuntu', $publicIp)
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
                 ->disableStrictHostKeyChecking()
-                ->execute('tmux new -s terraria-server');
-
+                ->execute([
+                    'cd mcterraria/TShock',
+                    $startServer,
+                ]);
         } else {
             $result = $ec2Client->stopInstances([
                 'InstanceIds' => $instanceIds,
