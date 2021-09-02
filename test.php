@@ -4,6 +4,24 @@ use Spatie\Ssh\Ssh;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
+function sendDiscordMessage($msg, $webhook) {
+    if(isset($webhook)) {
+        $curl = curl_init($webhook);
+        $msg = "payload_json=" . urlencode(json_encode($msg))."";
+        
+        if(isset($curl)) {
+            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $msg);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+
+            return $response;
+        }
+    }
+}
+
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
 
@@ -13,28 +31,15 @@ try {
     putenv("AWS_KEY={$_ENV['AWS_KEY']}");
     putenv("AWS_SECRET={$_ENV['AWS_SECRET']}");
     putenv("WORLD_NAME={$_ENV['WORLD_NAME']}");
+    putenv("DISCORD_WEBHOOK_URL={$_ENV['DISCORD_WEBHOOK_URL']}");
 } catch (Exception $e) {
     echo $e->getMessage();
 }
 
-$worldname = getenv('WORLD_NAME');
-$start_server = "screen -dmS terraria bash -c \"sh startserver.sh {$worldname}\"";
+$discordWebhook = getenv('DISCORD_WEBHOOK_URL');
 
-$process = Ssh::create('ubuntu', '3.10.180.212')
-    ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
-    ->disableStrictHostKeyChecking()
-    ->execute([
-            'cd mcterraria/TShock',
-            $start_server,
-        ]
-    );
+$json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address:"}';
+$discMessage = json_decode($json);
 
-var_dump($process);
-
-if ($process->isSuccessful()) {
-    echo "Success:";
-    print_r($process->getOutput());
-} else {
-    echo "Error:";
-    print_r($process);
-}
+$result = sendDiscordMessage($discMessage, $discordWebhook);
+var_dump($result);

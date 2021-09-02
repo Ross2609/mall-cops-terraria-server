@@ -4,6 +4,25 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use Aws\Ec2\Ec2Client;
 use Spatie\Ssh\Ssh;
+use Discord\Discord;
+
+function sendDiscordMessage($msg, $webhook) {
+    if(isset($webhook)) {
+        $curl = curl_init($webhook);
+        $msg = "payload_json=" . urlencode(json_encode($msg))."";
+        
+        if(isset($curl)) {
+            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $msg);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+
+            return $response;
+        }
+    }
+}
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
@@ -14,6 +33,7 @@ try {
     putenv("AWS_KEY={$_ENV['AWS_KEY']}");
     putenv("AWS_SECRET={$_ENV['AWS_SECRET']}");
     putenv("WORLD_NAME={$_ENV['WORLD_NAME']}");
+    putenv("DISCORD_WEBHOOK_URL={$_ENV['DISCORD_WEBHOOK_URL']}");
 } catch (Exception $e) {
     echo $e->getMessage();
 }
@@ -22,12 +42,11 @@ try {
 $gotIp = false;
 $publicIp = null;
 $worldName = getenv('WORLD_NAME');
-$startServer = "screen -dmS terraria bash -c \"sh startserver.sh {$worldName}\"";   
+$startServer = "screen -dmS terraria bash -c \"sh startserver.sh {$worldName}\"";
+$discordWebhook = getenv('DISCORD_WEBHOOK_URL');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($_POST['password'] === getenv('PASSWORD')) {
-        $action = 'START';
-
         // Get AWS instance by ID
         $ec2Client = new Aws\Ec2\Ec2Client([
             'region' => 'eu-west-2',
@@ -35,30 +54,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'credentials' => [
                 'key' => getenv('AWS_KEY'),
                 'secret'  => getenv('AWS_SECRET'),
-            ]
-        ]);
-
+                ]
+            ]);
+            
         $instanceIds = [getenv('INSTANCE_ID')];
-        
+    
         if(array_key_exists('start', $_POST)) {
             $result = $ec2Client->startInstances([
                 'InstanceIds' => $instanceIds,
             ]);
 
-            $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
-            $instance = $instanceDesc['Reservations'][0]['Instances'][0];
-
-            sleep(10);
-
             // Start Instance and get IP
             while(!$gotIp) {
-                sleep(1);
+                $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
+                $instance = $instanceDesc['Reservations'][0]['Instances'][0];
 
                 if(array_key_exists('PublicIpAddress', $instance)) {
                     $gotIp = true;
                     $publicIp = $instance['PublicIpAddress'];
                 }
+                
+                sleep(5);
             }
+
+            sleep(3);
 
             $process = Ssh::create('ubuntu', $publicIp)
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
@@ -67,6 +86,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'cd mcterraria/TShock',
                     $startServer,
                 ]);
+
+            if ($process->isSuccessful()) {
+                echo "Success:";
+                print_r($process->getOutput());
+            } else {
+                echo "Error:";
+                print_r($process);
+            }
+            
+            $json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address: ' . $publicIp . '"}';
+            $discMessage = json_decode($json, true);
+
+            $result = sendDiscordMessage($discMessage, $discordWebhook);
         } else {
             $result = $ec2Client->stopInstances([
                 'InstanceIds' => $instanceIds,
