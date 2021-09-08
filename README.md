@@ -1,2 +1,2 @@
-# mall-cops-terraria-server
+# Terraria Server
  
