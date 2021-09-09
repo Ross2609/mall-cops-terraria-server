@@ -6,12 +6,13 @@ use Aws\Ec2\Ec2Client;
 use Spatie\Ssh\Ssh;
 use Discord\Discord;
 
-function sendDiscordMessage($msg, $webhook) {
-    if(isset($webhook)) {
+function sendDiscordMessage($msg, $webhook)
+{
+    if (isset($webhook)) {
         $curl = curl_init($webhook);
-        $msg = "payload_json=" . urlencode(json_encode($msg))."";
-        
-        if(isset($curl)) {
+        $msg = "payload_json=" . urlencode(json_encode($msg)) . "";
+
+        if (isset($curl)) {
             curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
             curl_setopt($curl, CURLOPT_POSTFIELDS, $msg);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -34,6 +35,7 @@ try {
     putenv("AWS_SECRET={$_ENV['AWS_SECRET']}");
     putenv("WORLD_NAME={$_ENV['WORLD_NAME']}");
     putenv("DISCORD_WEBHOOK_URL={$_ENV['DISCORD_WEBHOOK_URL']}");
+    putenv("PRIVATE_KEY={$_ENV['PRIVATE_KEY']}");
 } catch (Exception $e) {
     echo $e->getMessage();
 }
@@ -54,33 +56,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'credentials' => [
                 'key' => getenv('AWS_KEY'),
                 'secret'  => getenv('AWS_SECRET'),
-                ]
-            ]);
-            
+            ]
+        ]);
+
         $instanceIds = [getenv('INSTANCE_ID')];
-    
-        if(array_key_exists('start', $_POST)) {
+
+        if (array_key_exists('start', $_POST)) {
             $result = $ec2Client->startInstances([
                 'InstanceIds' => $instanceIds,
             ]);
 
             // Start Instance and get IP
-            while(!$gotIp) {
+            while (!$gotIp) {
                 $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
                 $instance = $instanceDesc['Reservations'][0]['Instances'][0];
 
-                if(array_key_exists('PublicIpAddress', $instance)) {
+                if (array_key_exists('PublicIpAddress', $instance)) {
                     $gotIp = true;
                     $publicIp = $instance['PublicIpAddress'];
                 }
-                
+
                 sleep(5);
             }
 
             sleep(5);
 
+            $tempName = tempnam(sys_get_temp_dir(), 'TerrariaPrivateKey');
+            $temp = fopen($tempName, 'w');
+
+            fwrite($temp, getenv('PRIVATE_KEY'));
+            fseek($temp, 0);
+
             $process = Ssh::create('ubuntu', $publicIp)
-                ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
+                ->usePrivateKey($tempName)
                 ->disableStrictHostKeyChecking()
                 ->execute([
                     'cd mcterraria/TShock',
@@ -94,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo "Error:";
                 print_r($process);
             }
-            
+
             $json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address: ' . $publicIp . '"}';
             $discMessage = json_decode($json, true);
 
@@ -104,8 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'InstanceIds' => $instanceIds,
             ]);
         }
-    }
-    else {
+    } else {
         echo "Password incorrect... :(";
     }
 }
@@ -113,21 +120,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
-    <link href="resources/styles.css" rel="stylesheet" >
+    <link href="resources/styles.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj" crossorigin="anonymous"></script>
     <title>MC Terraria Server</title>
 </head>
+
 <body>
     <div class="container">
         <h1>Mall Cops Terraria Server</h1>
-        <?php if($gotIp) : ?>
+        <?php if ($gotIp) : ?>
             <h2 id="server--status">Server Status: Online</h2>
-            <h3 id="server--ip">IP Address: <?= $publicIp?></h3>
+            <h3 id="server--ip">IP Address: <?= $publicIp ?></h3>
         <?php else : ?>
             <h2 id="server--status">Server Status: Offline</h2>
         <?php endif; ?>
@@ -140,4 +149,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
 </body>
+
 </html>
