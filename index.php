@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 sleep(5);
             }
 
-            sleep(3);
+            sleep(10);
 
             $process = Ssh::create('ubuntu', $publicIp)
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria.pem')
