@@ -5,6 +5,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Aws\Ec2\Ec2Client;
 use Spatie\Ssh\Ssh;
 use Discord\Discord;
+use phpseclib3\Crypt\PublicKeyLoader;
 
 function sendDiscordMessage($msg, $webhook)
 {
@@ -43,8 +44,7 @@ try {
 // Define variables
 $gotIp = false;
 $publicIp = null;
-$worldName = getenv('WORLD_NAME');
-$startServer = "screen -dmS terraria bash -c \"sh startserver.sh {$worldName}\"";
+$startServer = "screen -dmS terraria bash -c \"sh startserver.sh\"";
 $discordWebhook = getenv('DISCORD_WEBHOOK_URL');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -81,32 +81,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             sleep(5);
 
-            $tempName = tempnam(sys_get_temp_dir(), 'TerrariaPrivateKey');
             $temp = fopen($tempName, 'w');
 
             fwrite($temp, getenv('PRIVATE_KEY'));
             fseek($temp, 0);
 
+            $key = PublicKeyLoader::load(file_get_contents(__DIR__ . '/mall-cops-terraria-key.pem'));
             $process = Ssh::create('ubuntu', $publicIp)
-                ->usePrivateKey($tempName)
                 ->disableStrictHostKeyChecking()
+                ->usePrivateKey(__DIR__ . '/mall-cops-terraria-key.pem')
                 ->execute([
-                    'cd mcterraria/TShock',
-                    $startServer,
+                    'cd mall-cops-terraria/TShock',
+                    'touch test.txt',
                 ]);
-
-            if ($process->isSuccessful()) {
-                echo "Success:";
-                print_r($process->getOutput());
-            } else {
-                echo "Error:";
-                print_r($process);
-            }
 
             $json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address: ' . $publicIp . '"}';
             $discMessage = json_decode($json, true);
 
-            $result = sendDiscordMessage($discMessage, $discordWebhook);
+            // $result = sendDiscordMessage($discMessage, $discordWebhook);
         } else {
             $result = $ec2Client->stopInstances([
                 'InstanceIds' => $instanceIds,
