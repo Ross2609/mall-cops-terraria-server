@@ -2,10 +2,7 @@
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Aws\Ec2\Ec2Client;
 use Spatie\Ssh\Ssh;
-use Discord\Discord;
-use phpseclib3\Crypt\PublicKeyLoader;
 
 function sendDiscordMessage($msg, $webhook)
 {
@@ -36,7 +33,6 @@ try {
     putenv("AWS_SECRET={$_ENV['AWS_SECRET']}");
     putenv("WORLD_NAME={$_ENV['WORLD_NAME']}");
     putenv("DISCORD_WEBHOOK_URL={$_ENV['DISCORD_WEBHOOK_URL']}");
-    putenv("PRIVATE_KEY={$_ENV['PRIVATE_KEY']}");
 } catch (Exception $e) {
     echo $e->getMessage();
 }
@@ -81,24 +77,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             sleep(5);
 
-            $temp = fopen($tempName, 'w');
-
-            fwrite($temp, getenv('PRIVATE_KEY'));
-            fseek($temp, 0);
-
-            $key = PublicKeyLoader::load(file_get_contents(__DIR__ . '/mall-cops-terraria-key.pem'));
             $process = Ssh::create('ubuntu', $publicIp)
                 ->disableStrictHostKeyChecking()
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria-key.pem')
                 ->execute([
-                    'cd mall-cops-terraria/TShock',
-                    'touch test.txt',
+                    'cd mall-cops-terraria/TShock/',
+                    $startServer,
                 ]);
+
+            var_dump($publicIp);
+            die();
 
             $json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address: ' . $publicIp . '"}';
             $discMessage = json_decode($json, true);
 
-            // $result = sendDiscordMessage($discMessage, $discordWebhook);
+            $result = sendDiscordMessage($discMessage, $discordWebhook);
         } else {
             $result = $ec2Client->stopInstances([
                 'InstanceIds' => $instanceIds,
