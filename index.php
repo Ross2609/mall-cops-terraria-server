@@ -85,9 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $startServer,
                 ]);
 
-            var_dump($publicIp);
-            die();
-
             $json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address: ' . $publicIp . '"}';
             $discMessage = json_decode($json, true);
 
