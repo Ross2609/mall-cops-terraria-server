@@ -3,6 +3,7 @@
 require_once __DIR__ . '/vendor/autoload.php';
 
 use Spatie\Ssh\Ssh;
+use Aws\Ec2\Ec2Client;
 
 function sendDiscordMessage($msg, $webhook)
 {
@@ -31,7 +32,6 @@ try {
     putenv("INSTANCE_ID={$_ENV['INSTANCE_ID']}");
     putenv("AWS_KEY={$_ENV['AWS_KEY']}");
     putenv("AWS_SECRET={$_ENV['AWS_SECRET']}");
-    putenv("WORLD_NAME={$_ENV['WORLD_NAME']}");
     putenv("DISCORD_WEBHOOK_URL={$_ENV['DISCORD_WEBHOOK_URL']}");
 } catch (Exception $e) {
     echo $e->getMessage();
@@ -40,13 +40,12 @@ try {
 // Define variables
 $gotIp = false;
 $publicIp = null;
-$startServer = "screen -dmS terraria bash -c \"sh startserver.sh\"";
 $discordWebhook = getenv('DISCORD_WEBHOOK_URL');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($_POST['password'] === getenv('PASSWORD')) {
         // Get AWS instance by ID
-        $ec2Client = new Aws\Ec2\Ec2Client([
+        $ec2Client = new Ec2Client([
             'region' => 'eu-west-2',
             'version' => '2016-11-15',
             'credentials' => [
@@ -64,12 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Start Instance and get IP
             while (!$gotIp) {
-                $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => [getenv('INSTANCE_ID')]]);
+                $instanceDesc = $ec2Client->describeInstances(['InstanceIds' => $instanceIds]);
                 $instance = $instanceDesc['Reservations'][0]['Instances'][0];
 
                 if (array_key_exists('PublicIpAddress', $instance)) {
                     $gotIp = true;
                     $publicIp = $instance['PublicIpAddress'];
+                    var_dump($publicIp);
                 }
 
                 sleep(5);
@@ -80,15 +80,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $process = Ssh::create('ubuntu', $publicIp)
                 ->disableStrictHostKeyChecking()
                 ->usePrivateKey(__DIR__ . '/mall-cops-terraria-key.pem')
-                ->execute([
-                    'cd mall-cops-terraria/TShock/',
-                    $startServer,
-                ]);
+                ->execute(
+                    [        
+                        'export SCREENDIR=~/mall-cops-terraria/screens',
+                        'cd mall-cops-terraria/TShock/',
+                        'screen -dmS terraria bash -c \'sh startServer.sh\'',
+                    ]);
+
+            var_dump("Process success: {$process->isSuccessful()}");
 
             $json = '{ "username":"TerrariaBot", "content":"Server Started! IP Address: ' . $publicIp . '"}';
             $discMessage = json_decode($json, true);
 
-            $result = sendDiscordMessage($discMessage, $discordWebhook);
+            // $result = sendDiscordMessage($discMessage, $discordWebhook);
         } else {
             $result = $ec2Client->stopInstances([
                 'InstanceIds' => $instanceIds,
